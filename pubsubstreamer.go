@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"context"
 	"flag"
+	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"time"
 
@@ -47,7 +49,16 @@ func (p *pubSubPublisher) shutdown() error {
 func main() {
 	projectID := flag.String("projectID", "bigquery-tools", "GCP project ID")
 	topicID := flag.String("topicID", "deleteme-benchmarking", "pubsub topic ID")
+	duration := flag.Duration("duration", 0, "time to publish a burst of messages")
+	goroutines := flag.Int("goroutines", 5, "number of publishing goroutines")
 	flag.Parse()
+
+	rand.Seed(time.Now().UnixNano())
+
+	if *duration <= 0 {
+		fmt.Fprintln(os.Stderr, "--duration is required")
+		os.Exit(1)
+	}
 
 	ctx := context.Background()
 	psClient, err := pubsub.NewClient(ctx, *projectID)
@@ -55,7 +66,7 @@ func main() {
 		panic(err)
 	}
 
-	pub := &pubSubPublisher{psClient.Topic(*topicID)}
+	topic := psClient.Topic(*topicID)
 	pub.start()
 
 	log.Printf("reading from stdin and publishing ...")
